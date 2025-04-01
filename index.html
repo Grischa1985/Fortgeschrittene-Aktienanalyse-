@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fortschrittliche Aktienanalyse</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .chart-container {
+            height: 300px;
+            position: relative;
+        }
+        
+        .bullish {
+            background-color: rgba(74, 222, 128, 0.1);
+            border-left: 4px solid #4ade80;
+        }
+        
+        .bearish {
+            background-color: rgba(248, 113, 113, 0.1);
+            border-left: 4px solid #f87171;
+        }
+        
+        .neutral {
+            background-color: rgba(251, 191, 36, 0.1);
+            border-left: 4px solid #fbbf24;
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+            100% { transform: scale(1); }
+        }
+        
+        .loading-spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-gray-200 min-h-screen p-4">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-4xl font-bold text-center mb-8 text-green-400">
+            <i class="fas fa-chart-line mr-3"></i>Fortgeschrittene Aktienanalyse
+        </h1>
+        
+        <div class="bg-slate-800 rounded-xl shadow-2xl p-6 mb-8">
+            <div class="flex flex-col md:flex-row gap-4">
+                <div class="flex-grow relative">
+                    <input type="text" id="stockInput" placeholder="Aktiensymbol eingeben (z.B. AAPL, MSFT)" 
+                           class="w-full bg-slate-700 border border-slate-600 rounded-lg py-3 px-4 text-lg focus:outline-none focus:ring-2 focus:ring-green-500 pr-12">
+                    <button id="searchBtn" class="absolute right-3 top-3 text-slate-400 hover:text-green-400">
+                        <i class="fas fa-search text-xl"></i>
+                    </button>
+                </div>
+                <button id="analyzeBtn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-lg flex items-center justify-center min-w-[180px] transition-all duration-300">
+                    <span id="btnText">Analysieren</span>
+                    <span id="loadingSpinner" class="ml-2 hidden">
+                        <div class="loading-spinner"></div>
+                    </span>
+                </button>
+            </div>
+        </div>
+        
+        <div id="stockInfo" class="hidden bg-slate-800 rounded-xl shadow-2xl p-6 mb-8">
+            <div class="flex flex-col md:flex-row gap-6">
+                <div class="flex items-center gap-4">
+                    <img id="stockLogo" src="" alt="Logo" class="w-16 h-16 rounded-full bg-white p-1">
+                    <div>
+                        <h2 id="stockName" class="text-2xl font-bold"></h2>
+                        <div class="flex items-center gap-2">
+                            <span id="stockSymbol" class="text-lg font-semibold bg-slate-700 px-2 py-1 rounded"></span>
+                            <span id="stockExchange" class="text-sm text-slate-400"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-grow flex justify-end items-center">
+                    <div class="text-right">
+                        <div id="stockPrice" class="text-3xl font-bold"></div>
+                        <div id="priceChange" class="text-lg"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="analysisResult" class="hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <!-- Sentiment Card -->
+                <div class="bg-slate-800 rounded-xl shadow-2xl p-6">
+                    <h3 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fas fa-brain mr-2 text-blue-400"></i> Gesamteindruck
+                    </h3>
+                    <div id="overallSentiment" class="flex items-center justify-center p-6 rounded-lg mb-4">
+                        <div class="text-center">
+                            <div id="sentimentIcon" class="text-6xl mb-2"></div>
+                            <div id="sentimentText" class="text-2xl font-bold"></div>
+                            <div id="sentimentScore" class="text-sm text-slate-400 mt-1"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recommendation Card -->
+                <div class="bg-slate-800 rounded-xl shadow-2xl p-6">
+                    <h3 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fas fa-star mr-2 text-yellow-400"></i> Analystenempfehlungen
+                    </h3>
+                    <div class="mb-4">
+                        <div class="flex justify-between mb-1">
+                            <span>Kaufen</span>
+                            <span id="buyRecommendations">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-700 rounded-full h-2.5">
+                            <div id="buyBar" class="bg-green-500 h-2.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <div class="flex justify-between mb-1">
+                            <span>Halten</span>
+                            <span id="holdRecommendations">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-700 rounded-full h-2.5">
+                            <div id="holdBar" class="bg-yellow-500 h-2.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <span>Verkaufen</span>
+                            <span id="sellRecommendations">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-700 rounded-full h-2.5">
+                            <div id="sellBar" class="bg-red-500 h-2.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Key Metrics Card -->
+                <div class="bg-slate-800 rounded-xl shadow-2xl p-6">
+                    <h3 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fas fa-chart-pie mr-2 text-purple-400"></i> Wichtige Kennzahlen
+                    </h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-slate-700 p-3 rounded-lg">
+                            <div class="text-sm text-slate-400">KGV</div>
+                            <div id="peRatio" class="font-bold"></div>
+                        </div>
+                        <div class="bg-slate-700 p-3 rounded-lg">
+                            <div class="text-sm text-slate-400">KBV</div>
+                            <div id="pbRatio" class="font-bold"></div>
+                        </div>
+                        <div class="bg-slate-700 p-3 rounded-lg">
+                            <div class="text-sm text-slate-400">Dividendenrendite</div>
+                            <div id="dividendYield" class="font-bold"></div>
+                        </div>
+                        <div class="bg-slate-700 p-3 rounded-lg">
+                            <div class="text-sm text-slate-400">Free Cash Flow</div>
+                            <div id="freeCashFlow" class="font-bold"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Technical Analysis Section -->
+            <div class="bg-slate-800 rounded-xl shadow-2xl p-6 mb-8">
+                <h3 class="text-xl font-bold mb-4 flex items-center">
+                    <i class="fas fa-chart-bar mr-2 text-red-400"></i> Technische Analysen
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div id="ma50" class="bg-slate-700 p-4 rounded-lg">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="text-sm text-slate-400">50-Tage-Durchschnitt</div>
+                        <div class="font-bold text-lg"></div>
+                            </div>
+                            <div id="ma50Signal" class="px-2 py-1 rounded text-xs font-bold"></div>
+                        </div>
+                    </div>
+                    <div id="ma200" class="bg-slate-700 p-4 rounded-lg">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="text-sm text-slate-400">200-Tage-Durchschnitt</div>
+                                <div class="font-bold text-lg"></div>
+                            </div>
+                            <div id="ma200Signal" class="px-2 py-1 rounded text-xs font-bold"></div>
+                        </div>
+                    </div>
+                    <div id="rsi" class="bg-slate-700 p-4 rounded-lg">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="text-sm text-slate-400">RSI (14)</div>
+                                <div class="font-bold text-lg"></div>
+                            </div>
+                            <div id="rsiSignal" class="px-2 py-1 rounded text-xs font-bold"></div>
+                        </div>
+                    </div>
+                    <div id="macd" class="bg-slate-700 p-4 rounded-lg">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="text-sm text-slate-400">MACD</div>
+                                <div class="font-bold text-lg"></div>
+                            </div>
+                            <div id="macdSignal" class="px-2 py-1 rounded text-xs font-bold"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Chart Placeholder -->
+                <div class="chart-container bg-slate-700 rounded-lg p-4">
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Fundamental Analysis Section -->
+            <div class="bg-slate-800 rounded-xl shadow-2xl p-6 mb-8">
+                <h3 class="text-xl font-bold mb-4 flex items-center">
+                    <i class="fas fa-landmark mr-2 text-blue-400"></i> Fundamentale Analysen
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="border-b border-slate-700">
+                                <th class="pb-2">Kennzahl</th>
+                                <th class="pb-2">Wert</th>
+                                <th class="pb-2">Industriedurchschnitt</th>
+                                <th class="pb-2">Bewertung</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b border-slate-700">
+                                <td class="py-3">Umsatzwachstum (YoY)</td>
+                                <td id="revenueGrowth" class="font-bold"></td>
+                                <td>5.2%</td>
+                                <td id="revenueGrowthRating" class="capitalize"></td>
+                            </tr>
+                            <tr class="border-b border-slate-700">
+                                <td class="py-3">Gewinnwachstum (YoY)</td>
+                                <td id="earningsGrowth" class="font-bold"></td>
+                                <td>7.8%</td>
+                                <td id="earningsGrowthRating" class="capitalize"></td>
+                            </tr>
+                            <tr class="border-b border-slate-700">
+                                <td class="py-3">Eigenkapitalrendite (ROE)</td>
+                                <td id="roe" class="font-bold"></td>
+                                <td>15.0%</td>
+                                <td id="roeRating" class="capitalize"></td>
+                            </tr>
+                            <tr>
+                                <td class="py-3">Verschuldungsgrad</td>
+                                <td id="debtEquity" class="font-bold"></td>
+                                <td>0.8</td>
+                                <td id="debtEquityRating" class="capitalize"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- News Sentiment Section -->
+            <div class="bg-slate-800 rounded-xl shadow-2xl p-6">
+                <h3 class="text-xl font-bold mb-4 flex items-center">
+                    <i class="fas fa-newspaper mr-2 text-green-400"></i> Nachrichten-Sentiment
+                </h3>
+                <div class="flex flex-col md:flex-row gap-6">
+                    <div class="flex-grow">
+                        <div class="flex justify-between mb-1">
+                            <span>Positiv</span>
+                            <span id="positiveNews">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-700 rounded-full h-2.5">
+                            <div id="positiveNewsBar" class="bg-green-500 h-2.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="flex-grow">
+                        <div class="flex justify-between mb-1">
+                            <span>Neutral</span>
+                            <span id="neutralNews">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-700 rounded-full h-2.5">
+                            <div id="neutralNewsBar" class="bg-yellow-500 h-2.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="flex-grow">
+                        <div class="flex justify-between mb-1">
+                            <span>Negativ</span>
+                            <span id="negativeNews">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-700 rounded-full h-2.5">
+                            <div id="negativeNewsBar" class="bg-red-500 h-2.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="newsSnippets" class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements
+            const stockInput = document.getElementById('stockInput');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const btnText = document.getElementById('btnText');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const stockInfo = document.getElementById('stockInfo');
+            const analysisResult = document.getElementById('analysisResult');
+            
+            // Chart variable
+            let priceChart;
+            
+            // Event Listeners
+            analyzeBtn.addEventListener('click', analyzeStock);
+            stockInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') analyzeStock();
+            });
+            
+            // Analyze Stock Function
+            function analyzeStock() {
+                const symbol = stockInput.value.trim();
+                
+                if (!symbol) {
+                    alert('Bitte geben Sie ein Aktiensymbol ein');
+                    return;
+                }
+                
+                // Show loading state
+                btnText.textContent = 'Analysiere...';
+                loadingSpinner.classList.remove('hidden');
+                analyzeBtn.disabled = true;
+                
+                // Simulate API call with timeout (in a real app, you would call actual APIs)
+                setTimeout(() => {
+                    fetchStockData(symbol);
+                    
+                    // Hide loading state
+                    btnText.textContent = 'Analysieren';
+                    loadingSpinner.classList.add('hidden');
+                    analyzeBtn.disabled = false;
+                }, 1500);
+            }
+            
+            // Fetch Stock Data (simulated)
+            function fetchStockData(symbol) {
+                // Get random data for demonstration
+                const isBullish = Math.random() > 0.5;
+                const score = (Math.random() * 2 + (isBullish ? 0.5 : -0.5)).toFixed(1);
+                
+                // Show stock info
+                document.getElementById('stockName').textContent = getRandomCompanyName(symbol);
+                document.getElementById('stockSymbol').textContent = symbol.toUpperCase();
+                document.getElementById('stockExchange').textContent = 'NASDAQ';
+                document.getElementById('stockPrice').textContent = `$${(Math.random() * 500 + 50).toFixed(2)}`;
+                
+                const priceChange = (Math.random() * 10 - 3).toFixed(2);
+                const changeElement = document.getElementById('priceChange');
+                changeElement.textContent = `${priceChange >= 0 ? '+' : ''}${priceChange}%`;
+                changeElement.className = `text-lg ${priceChange >= 0 ? 'text-green-400' : 'text-red-400'}`;
+                
+                document.getElementById('stockLogo').src = `https://logo.clearbit.com/${symbol.toLowerCase()}.com`;
+                
+                stockInfo.classList.remove('hidden');
+                
+                // Update overall sentiment
+                updateSentiment(isBullish, score);
+                
+                // Update recommendations
+                updateRecommendations(isBullish);
+                
+                // Update technical analysis
+                updateTechnicalAnalysis(isBullish);
+                
+                // Update fundamental analysis
+                updateFundamentalAnalysis(isBullish);
+                
+                // Update news sentiment
+                updateNewsSentiment(isBullish);
+                
+                // Show results
+                analysisResult.classList.remove('hidden');
+                
+                // Initialize chart
+                initChart(isBullish);
+                
+                // Scroll to results
+                analysisResult.scrollIntoView({ behavior: 'smooth' });
+            }
+            
+            // Update Overall Sentiment
+            function updateSentiment(isBullish, score) {
+                const sentimentElement = document.getElementById('overallSentiment');
+                const iconElement = document.getElementById('sentimentIcon');
+                const textElement = document.getElementById('sentimentText');
+                const scoreElement = document.getElementById('sentimentScore');
+                
+                // Remove all classes
+                sentimentElement.className = 'flex items-center justify-center p-6 rounded-lg mb-4 pulse';
+                
+                if (isBullish) {
+                    sentimentElement.classList.add('bullish');
+                    iconElement.innerHTML = '<i class="fas fa-bullhorn text-green-500"></i>';
+                    textElement.textContent = 'BULLISH';
+                    textElement.className = 'text-2xl font-bold text-green-500';
+                    scoreElement.textContent = `Sentiment Score: ${score}/3 (Strong Buy)`;
+                } else {
+                    sentimentElement.classList.add('bearish');
+                    iconElement.innerHTML = '<i class="fas fa-exclamation-triangle text-red-500"></i>';
+                    textElement.textContent = 'BEARISH';
+                    textElement.className = 'text-2xl font-bold text-red-500';
+                    scoreElement.textContent = `Sentiment Score: ${score}/3 (Sell)`;
+                }
+            }
+            
+            // Update Recommendations
+            function updateRecommendations(isBullish) {
+                let buy, hold, sell;
+                
+                if (isBullish) {
+                    buy = Math.floor(Math.random() * 30 + 60); // 60-90%
+                    hold = Math.floor(Math.random() * (100 - buy - 5));
+                    sell = 100 - buy - hold;
+                } else {
+                    sell = Math.floor(Math.random() * 30 + 60); // 60-90%
+                    hold = Math.floor(Math.random() * (100 - sell - 5));
+                    buy = 100 - sell - hold;
+                }
+                
+                document.getElementById('buyRecommendations').textContent = `${buy}%`;
+                document.getElementById('holdRecommendations').textContent = `${hold}%`;
+                document.getElementById('sellRecommendations').textContent = `${sell}%`;
+                
+                document.getElementById('buyBar').style.width = `${buy}%`;
+                document.getElementById('holdBar').style.width = `${hold}%`;
+                document.getElementById('sellBar').style.width = `${sell}%`;
+                
+                // Update key metrics
+                document.getElementById('peRatio').textContent = (Math.random() * 30 + 5).toFixed(1);
+                document.getElementById('pbRatio').textContent = (Math.random() * 10 + 1).toFixed(1);
+                document.getElementById('dividendYield').textContent = `${(Math.random() * 5).toFixed(2)}%`;
+                document.getElementById('freeCashFlow').textContent = `$${(Math.random() * 50 + 5).toFixed(1)}B`;
+            }
+            
+            // Update Technical Analysis
+            function updateTechnicalAnalysis(isBullish) {
+                const ma50Signal = document.getElementById('ma50Signal');
+                const ma200Signal = document.getElementById('ma200Signal');
+                const rsiSignal = document.getElementById('rsiSignal');
+                const macdSignal = document.getElementById('macdSignal');
+                
+                document.querySelector('#ma50 .font-bold').textContent = (Math.random() * 50 + 100).toFixed(2);
+                document.querySelector('#ma200 .font-bold').textContent = (Math.random() * 50 + 90).toFixed(2);
+                document.querySelector('#rsi .font-bold').textContent = (Math.random() * 30 + (isBullish ? 40 : 30)).toFixed(1);
+                document.querySelector('#macd .font-bold').textContent = (Math.random() * 2 + (isBullish ? 0.5 : -0.5)).toFixed(2);
+                
+                ma50Signal.textContent = isBullish ? 'BULLISH' : 'BEARISH';
+                ma50Signal.className = `px-2 py-1 rounded text-xs font-bold ${isBullish ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`;
+                
+                ma200Signal.textContent = isBullish ? 'BULLISH' : 'BEARISH';
+                ma200Signal.className = `px-2 py-1 rounded text-xs font-bold ${isBullish ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`;
+                
+                const rsiValue = parseFloat(document.querySelector('#rsi .font-bold').textContent);
+                if (rsiValue > 70) {
+                    rsiSignal.textContent = 'OVERBOUGHT';
+                    rsiSignal.className = 'px-2 py-1 rounded text-xs font-bold bg-red-500 text-white';
+                } else if (rsiValue < 30) {
+                    rsiSignal.textContent = 'OVERSOLD';
+                    rsiSignal.className = 'px-2 py-1 rounded text-xs font-bold bg-green-500 text-white';
+                } else {
+                    rsiSignal.textContent = 'NEUTRAL';
+                    rsiSignal.className = 'px-2 py-1 rounded text-xs font-bold bg-yellow-500 text-white';
+                }
+                
+                const macdValue = parseFloat(document.querySelector('#macd .font-bold').textContent);
+                if (macdValue > 0) {
+                    macdSignal.textContent = 'BULLISH';
+                    macdSignal.className = 'px-2 py-1 rounded text-xs font-bold bg-green-500 text-white';
+                } else {
+                    macdSignal.textContent = 'BEARISH';
+                    macdSignal.className = 'px-2 py-1 rounded text-xs font-bold bg-red-500 text-white';
+                }
+            }
+            
+            // Update Fundamental Analysis
+            function updateFundamentalAnalysis(isBullish) {
+                document.getElementById('revenueGrowth').textContent = `${(Math.random() * 15 + (isBullish ? 5 : -5)).toFixed(1)}%`;
+                document.getElementById('earningsGrowth').textContent = `${(Math.random() * 20 + (isBullish ? 5 : -10)).toFixed(1)}%`;
+                document.getElementById('roe').textContent = `${(Math.random() * 20 + (isBullish ? 5 : -5)).toFixed(1)}%`;
+                document.getElementById('debtEquity').textContent = (Math.random() * 1.5 + (isBullish ? 0.2 : 1)).toFixed(2);
+                
+                // Ratings
+                document.getElementById('revenueGrowthRating').textContent = getRating(parseFloat(document.getElementById('revenueGrowth').textContent), 5);
+                document.getElementById('earningsGrowthRating').textContent = getRating(parseFloat(document.getElementById('earningsGrowth').textContent), 7.8);
+                document.getElementById('roeRating').textContent = getRating(parseFloat(document.getElementById('roe').textContent), 15);
+                document.getElementById('debtEquityRating').textContent = getRating(parseFloat(document.getElementById('debtEquity').textContent), 0.8, true);
+                
+                function getRating(value, benchmark, reverse = false) {
+                    if (reverse) {
+                        // Lower is better (e.g. for debt)
+                        if (value < benchmark * 0.7) return 'exzellent';
+                        if (value < benchmark) return 'gut';
+                        if (value < benchmark * 1.3) return 'durchschnittlich';
+                        return 'schwach';
+                    } else {
+                        // Higher is better
+                        if (value > benchmark * 1.3) return 'exzellent';
+                        if (value > benchmark) return 'gut';
+                        if (value > benchmark * 0.7) return 'durchschnittlich';
+                        return 'schwach';
+                    }
+                }
+            }
+            
+            // Update News Sentiment
+            function updateNewsSentiment(isBullish) {
+                let positive, neutral, negative;
+                
+                if (isBullish) {
+                    positive = Math.floor(Math.random() * 30 + 50); // 50-80%
+                    negative = Math.floor(Math.random() * 20);
+                    neutral = 100 - positive - negative;
+                } else {
+                    negative = Math.floor(Math.random() * 30 + 50); // 50-80%
+                    positive = Math.floor(Math.random() * 20);
+                    neutral = 100 - positive - negative;
+                }
+                
+                document.getElementById('positiveNews').textContent = `${positive}%`;
+                document.getElementById('neutralNews').textContent = `${neutral}%`;
+                document.getElementById('negativeNews').textContent = `${negative}%`;
+                
+                document.getElementById('positiveNewsBar').style.width = `${positive}%`;
+                document.getElementById('neutralNewsBar').style.width = `${neutral}%`;
+                document.getElementById('negativeNewsBar').style.width = `${negative}%`;
+                
+                // Add news snippets
+                const newsSnippets = document.getElementById('newsSnippets');
+                newsSnippets.innerHTML = '';
+                
+                const positiveNews = [
+                    "Neue Produkteinführung begeistert Anleger",
+                    "Unternehmen übertrifft Gewinnerwartungen",
+                    "Experten sehen großes Wachstumspotential",
+                    "CEO kauft massive Anzahl an Aktien"
+                ];
+                
+                const negativeNews = [
+                    "Gerichtsverfahren belasten Aktie",
+                    "Quartalszahlen enttäuschen",
+                    "Ratingagentur senkt Einstufung",
+                    "Wettbewerber gewinnt Marktanteile"
+                ];
+                
+                const neutralNews = [
+                    "Unternehmensbericht veröffentlicht",
+                    "VP verkauft Aktien gemäß Plan",
+                    "Standard-Analystenaktualisierung",
+                    "Jahreshauptversammlung terminiert"
+                ];
+                
+                // Add positive news
+                for (let i = 0; i < (isBullish ? 3 : 1); i++) {
+                    const snippet = document.createElement('div');
+                    snippet.className = 'bg-slate-700 p-4 rounded-lg';
+                    snippet.innerHTML = `
+                        <div class="flex items-start gap-3">
+                            <i class="fas fa-thumbs-up text-green-400 mt-1"></i>
+                            <div>
+                                <div class="font-bold">${positiveNews[i]}</div>
+                                <div class="text-sm text-slate-400">Heute, ${Math.floor(Math.random() * 12 + 1)}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')} Uhr</div>
+                            </div>
+                        </div>
+                    `;
+                    newsSnippets.appendChild(snippet);
+                }
+                
+                // Add neutral news
+                for (let i = 0; i < 2; i++) {
+                    const snippet = document.createElement('div');
+                    snippet.className = 'bg-slate-700 p-4 rounded-lg';
+                    snippet.innerHTML = `
+                        <div class="flex items-start gap-3">
+                            <i class="fas fa-balance-scale text-yellow-400 mt-1"></i>
+                            <div>
+                                <div class="font-bold">${neutralNews[i]}</div>
+                                <div class="text-sm text-slate-400">Gestern, ${Math.floor(Math.random() * 12 + 1)}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')} Uhr</div>
+                            </div>
+                        </div>
+                    `;
+                    newsSnippets.appendChild(snippet);
+                }
+                
+                // Add negative news
+                for (let i = 0; i < (isBullish ? 1 : 3); i++) {
+                    const snippet = document.createElement('div');
+                    snippet.className = 'bg-slate-700 p-4 rounded-lg';
+                    snippet.innerHTML = `
+                        <div class="flex items-start gap-3">
+                            <i class="fas fa-thumbs-down text-red-400 mt-1"></i>
+                            <div>
+                                <div class="font-bold">${negativeNews[i]}</div>
+                                <div class="text-sm text-slate-400">${Math.floor(Math.random() * 5 + 1)} Tage alt</div>
+                            </div>
+                        </div>
+                    `;
+                    newsSnippets.appendChild(snippet);
+                }
+            }
+            
+            // Initialize Chart
+            function initChart(isBullish) {
+                const ctx = document.getElementById('priceChart').getContext('2d');
+                
+                if (priceChart) {
+                    priceChart.destroy();
+                }
+                
+                // Generate price data (last 30 days)
+                const basePrice = Math.random() * 300 + 50;
+                const prices = [];
+                let currentPrice = basePrice;
+                
+                for (let i = 0; i < 30; i++) {
+                    currentPrice *= (1 + (Math.random() * 0.03 - 0.01) * (isBullish ? 1.2 : 0.8));
+                    prices.push(currentPrice);
+                }
+                
+                // Generate dates
+                const dates = [];
+                const today = new Date();
+                for (let i = 29; i >= 0; i--) {
+                    const date = new Date(today);
+                    date.setDate(date.getDate() - i);
+                    dates.push(date.toLocaleDateString('de-DE', { month: 'short', day: 'numeric' }));
+                }
+                
+                priceChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: dates,
+                        datasets: [{
+                            label: 'Kursverlauf',
+                            data: prices,
+                            borderColor: isBullish ? '#4ade80' : '#f87171',
+                            backgroundColor: 'rgba(0, 0, 0, 0)',
+                            borderWidth: 2,
+                            tension: 0.1,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                },
+                                ticks: {
+                                    color: 'rgba(255, 255, 255, 0.7)'
+                                }
+                            },
+                            y: {
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                },
+                                ticks: {
+                                    color: 'rgba(255, 255, 255, 0.7)'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Helper function to get random company name
+            function getRandomCompanyName(symbol) {
+                const companies = {
+                    'AAPL': 'Apple Inc.',
+                    'MSFT': 'Microsoft Corporation',
+                    'AMZN': 'Amazon.com Inc.',
+                    'GOOGL': 'Alphabet Inc.',
+                    'TSLA': 'Tesla Inc.',
+                    'META': 'Meta Platforms Inc.',
+                    'NVDA': 'NVIDIA Corporation',
+                    'PFE': 'Pfizer Inc.',
+                    'NFLX': 'Netflix Inc.',
+                    'DIS': 'The Walt Disney Company'
+                };
+                
+                return companies[symbol.toUpperCase()] || `${symbol.toUpperCase()} Company`;
+            }
+        });
+    </script>
+</body>
+</html>
